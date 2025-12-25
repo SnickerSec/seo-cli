@@ -1,15 +1,21 @@
 # seo-cli
 
+[![CI](https://github.com/SnickerSec/seo-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/SnickerSec/seo-cli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+
 All-in-one SEO command-line tool for Google Analytics, Search Console, PageSpeed Insights, site crawling, uptime monitoring, and backlink analysis.
 
 ## Features
 
+- **SEO Audit** - Comprehensive audit combining crawl + PageSpeed analysis
 - **Google Analytics 4** - Query reports, real-time data, export
 - **Google Search Console** - Search performance, URL inspection, sitemaps
 - **PageSpeed Insights** - Core Web Vitals, performance scores
 - **Site Crawler** - Find broken links, missing meta tags, SEO issues
 - **UptimeRobot** - Monitor website uptime and response times
 - **Moz API** - Domain authority, backlinks, spam score
+- **Response Caching** - Cache expensive API calls for faster repeat queries
 
 ## Installation
 
@@ -22,14 +28,17 @@ npm link  # Makes 'seo-cli' available globally
 ## Quick Start
 
 ```bash
-# Configure Google service account (for GA & GSC)
-seo-cli auth --key-file ./service-account.json
+# Run a comprehensive SEO audit (no auth required)
+seo-cli audit example.com
 
 # Run PageSpeed analysis
 seo-cli speed run example.com
 
 # Crawl a site for SEO issues
 seo-cli crawl example.com
+
+# Configure Google service account (for GA & GSC)
+seo-cli auth --key-file ./service-account.json
 
 # Check domain authority (requires Moz API)
 seo-cli moz auth --id <access-id> --secret <secret-key>
@@ -38,6 +47,10 @@ seo-cli moz check example.com
 # Monitor uptime (requires UptimeRobot API)
 seo-cli uptime auth --api-key <key>
 seo-cli uptime status
+
+# Manage cache
+seo-cli cache status
+seo-cli cache clear
 ```
 
 ---
