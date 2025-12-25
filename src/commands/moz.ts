@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { formatTable, error, info, success } from '../lib/formatter.js';
 import { getMozCredentials, setMozCredentials } from '../lib/auth.js';
+import { withCache } from '../lib/cache.js';
 
 const MOZ_API = 'https://lsapi.seomoz.com/v2';
 
@@ -134,6 +135,7 @@ export function createMozCommand(): Command {
     .command('check <url>')
     .description('Get domain authority and metrics for a URL')
     .option('-f, --format <format>', 'Output format: table or json', 'table')
+    .option('--no-cache', 'Bypass cache and fetch fresh data')
     .action(async (url, options) => {
       try {
         // Normalize URL
@@ -141,11 +143,17 @@ export function createMozCommand(): Command {
           url = 'https://' + url;
         }
 
-        info(`Fetching Moz metrics for ${url}...\n`);
+        info(`Fetching Moz metrics for ${url}...`);
+        if (options.cache) {
+          info('Using cache if available - DA changes slowly (use --no-cache to bypass)\n');
+        }
 
-        const data = await mozRequest<{ results: MozUrlMetrics[] }>('url_metrics', {
-          targets: [url],
-        });
+        const data = await withCache(
+          'moz',
+          url,
+          () => mozRequest<{ results: MozUrlMetrics[] }>('url_metrics', { targets: [url] }),
+          { bypass: !options.cache }
+        );
 
         const metrics = data.results?.[0];
 

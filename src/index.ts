@@ -14,6 +14,8 @@ import { createSpeedCommand } from './commands/speed.js';
 import { createCrawlCommand } from './commands/crawl.js';
 import { createUptimeCommand } from './commands/uptime.js';
 import { createMozCommand } from './commands/moz.js';
+import { createCacheCommand } from './commands/cache.js';
+import { createAuditCommand } from './commands/audit.js';
 
 const program = new Command();
 
@@ -72,5 +74,7 @@ program.addCommand(createSpeedCommand());
 program.addCommand(createCrawlCommand());
 program.addCommand(createUptimeCommand());
 program.addCommand(createMozCommand());
+program.addCommand(createCacheCommand());
+program.addCommand(createAuditCommand());
 
 program.parse();

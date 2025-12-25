@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { formatTable, error, info, success } from '../lib/formatter.js';
 import { getPageSpeedApiKey, setPageSpeedApiKey } from '../lib/auth.js';
+import { withCache } from '../lib/cache.js';
 import type { CoreWebVitals } from '../types/index.js';
 
 const PAGESPEED_API = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
@@ -113,6 +114,7 @@ export function createSpeedCommand(): Command {
     .description('Run PageSpeed analysis on a URL')
     .option('-s, --strategy <strategy>', 'Analysis strategy: mobile or desktop', 'mobile')
     .option('-f, --format <format>', 'Output format: table or json', 'table')
+    .option('--no-cache', 'Bypass cache and fetch fresh data')
     .action(async (url, options) => {
       try {
         // Validate URL
@@ -121,9 +123,18 @@ export function createSpeedCommand(): Command {
         }
 
         info(`Analyzing ${url} (${options.strategy})...`);
-        info('This may take 30-60 seconds...\n');
+        if (options.cache) {
+          info('Using cache if available (use --no-cache to bypass)');
+        }
+        info('This may take 30-60 seconds for fresh analysis...\n');
 
-        const data = await runPageSpeed(url, options.strategy);
+        const cacheKey = `${url}:${options.strategy}`;
+        const data = await withCache(
+          'pagespeed',
+          cacheKey,
+          () => runPageSpeed(url, options.strategy),
+          { bypass: !options.cache }
+        );
         const vitals = extractCoreWebVitals(data);
         const categories = data.lighthouseResult.categories;
 
