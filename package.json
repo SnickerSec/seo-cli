@@ -1,0 +1,47 @@
+{
+  "name": "seo-cli",
+  "version": "1.1.0",
+  "description": "All-in-one SEO command-line tool: Google Analytics, Search Console, PageSpeed, Crawler, Uptime, Backlinks",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "seo-cli": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "seo",
+    "google-analytics",
+    "search-console",
+    "pagespeed",
+    "crawler",
+    "backlinks",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google-analytics/admin": "^9.0.1",
+    "@google-analytics/data": "^5.2.1",
+    "chalk": "^5.3.0",
+    "cheerio": "^1.0.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "csv-stringify": "^6.5.1",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
