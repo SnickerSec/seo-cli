@@ -16,6 +16,7 @@ import { createUptimeCommand } from './commands/uptime.js';
 import { createMozCommand } from './commands/moz.js';
 import { createCacheCommand } from './commands/cache.js';
 import { createAuditCommand } from './commands/audit.js';
+import { createCompareCommand } from './commands/compare.js';
 
 const program = new Command();
 
@@ -76,5 +77,6 @@ program.addCommand(createUptimeCommand());
 program.addCommand(createMozCommand());
 program.addCommand(createCacheCommand());
 program.addCommand(createAuditCommand());
+program.addCommand(createCompareCommand());
 
 program.parse();

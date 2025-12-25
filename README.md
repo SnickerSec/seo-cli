@@ -9,6 +9,7 @@ All-in-one SEO command-line tool for Google Analytics, Search Console, PageSpeed
 ## Features
 
 - **SEO Audit** - Comprehensive audit combining crawl + PageSpeed analysis
+- **Competitor Comparison** - Compare SEO metrics across multiple sites
 - **Google Analytics 4** - Query reports, real-time data, export
 - **Google Search Console** - Search performance, URL inspection, sitemaps
 - **PageSpeed Insights** - Core Web Vitals, performance scores
@@ -30,6 +31,9 @@ npm link  # Makes 'seo-cli' available globally
 ```bash
 # Run a comprehensive SEO audit (no auth required)
 seo-cli audit example.com
+
+# Compare competitors
+seo-cli compare mysite.com competitor1.com competitor2.com
 
 # Run PageSpeed analysis
 seo-cli speed run example.com
