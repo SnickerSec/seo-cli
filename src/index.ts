@@ -22,6 +22,7 @@ import { createSitemapCommand } from './commands/sitemap.js';
 import { createHeadersCommand } from './commands/headers.js';
 import { createRedirectsCommand } from './commands/redirects.js';
 import { createSchemaCommand } from './commands/schema.js';
+import { createContentCommand } from './commands/content.js';
 
 const program = new Command();
 
@@ -88,5 +89,6 @@ program.addCommand(createSitemapCommand());
 program.addCommand(createHeadersCommand());
 program.addCommand(createRedirectsCommand());
 program.addCommand(createSchemaCommand());
+program.addCommand(createContentCommand());
 
 program.parse();
