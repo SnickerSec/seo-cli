@@ -1,19 +1,31 @@
 # seo-cli
 
 [![CI](https://github.com/SnickerSec/seo-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/SnickerSec/seo-cli/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/SnickerSec/seo-cli/actions/workflows/codeql.yml/badge.svg)](https://github.com/SnickerSec/seo-cli/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
-All-in-one SEO command-line tool for Google Analytics, Search Console, PageSpeed Insights, site crawling, uptime monitoring, and backlink analysis.
+All-in-one SEO command-line tool for comprehensive site analysis, Google Analytics, Search Console, PageSpeed Insights, site crawling, uptime monitoring, and backlink analysis.
 
 ## Features
 
+### Site Analysis (No Auth Required)
 - **SEO Audit** - Comprehensive audit combining crawl + PageSpeed analysis
 - **Competitor Comparison** - Compare SEO metrics across multiple sites
+- **Content Analysis** - Readability scores, keyword density, content optimization
+- **Site Crawler** - Find broken links, missing meta tags, SEO issues
+- **PageSpeed Insights** - Core Web Vitals, performance scores
+
+### Technical SEO
+- **Robots.txt Analyzer** - Parse and validate robots.txt rules
+- **Sitemap Validator** - Check XML sitemap structure and URLs
+- **Security Headers** - Audit HSTS, CSP, X-Frame-Options, and more
+- **Redirect Checker** - Follow and analyze redirect chains
+- **Schema Validator** - Extract and validate JSON-LD, OpenGraph, Twitter Cards
+
+### Integrations (Auth Required)
 - **Google Analytics 4** - Query reports, real-time data, export
 - **Google Search Console** - Search performance, URL inspection, sitemaps
-- **PageSpeed Insights** - Core Web Vitals, performance scores
-- **Site Crawler** - Find broken links, missing meta tags, SEO issues
 - **UptimeRobot** - Monitor website uptime and response times
 - **Moz API** - Domain authority, backlinks, spam score
 - **Response Caching** - Cache expensive API calls for faster repeat queries
@@ -29,8 +41,26 @@ npm link  # Makes 'seo-cli' available globally
 ## Quick Start
 
 ```bash
-# Run a comprehensive SEO audit (no auth required)
+# Run a comprehensive SEO audit
 seo-cli audit example.com
+
+# Analyze content readability and keywords
+seo-cli content https://example.com/blog-post
+
+# Check security headers
+seo-cli headers https://example.com
+
+# Validate robots.txt
+seo-cli robots https://example.com
+
+# Check XML sitemap
+seo-cli sitemap https://example.com/sitemap.xml
+
+# Follow redirect chain
+seo-cli redirects http://example.com
+
+# Extract structured data (JSON-LD, OpenGraph)
+seo-cli schema https://example.com
 
 # Compare competitors
 seo-cli compare mysite.com competitor1.com competitor2.com
@@ -40,69 +70,216 @@ seo-cli speed run example.com
 
 # Crawl a site for SEO issues
 seo-cli crawl example.com
-
-# Configure Google service account (for GA & GSC)
-seo-cli auth --key-file ./service-account.json
-
-# Check domain authority (requires Moz API)
-seo-cli moz auth --id <access-id> --secret <secret-key>
-seo-cli moz check example.com
-
-# Monitor uptime (requires UptimeRobot API)
-seo-cli uptime auth --api-key <key>
-seo-cli uptime status
-
-# Manage cache
-seo-cli cache status
-seo-cli cache clear
-```
-
----
-
-## Setup
-
-### Google Service Account (for GA & Search Console)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable **Google Analytics Data API**, **Google Analytics Admin API**, and **Search Console API**
-3. Create a service account and download the JSON key
-4. Add the service account email to:
-   - Google Analytics: Admin > Property Access Management
-   - Search Console: Settings > Users and permissions
-
-```bash
-seo-cli auth --key-file ./service-account.json
-```
-
-### UptimeRobot (Free)
-
-1. Create account at [uptimerobot.com](https://uptimerobot.com)
-2. Get API key from Dashboard > My Settings
-
-```bash
-seo-cli uptime auth --api-key <your-api-key>
-```
-
-### Moz API (Free tier: 10 queries/month)
-
-1. Sign up at [moz.com/products/api](https://moz.com/products/api)
-2. Get Access ID and Secret Key
-
-```bash
-seo-cli moz auth --id <access-id> --secret <secret-key>
-```
-
-### PageSpeed API Key (Optional)
-
-For higher rate limits, add a Google API key:
-
-```bash
-seo-cli speed auth --api-key <google-api-key>
 ```
 
 ---
 
 ## Commands
+
+### Content Analysis
+
+Analyze content readability and keyword density.
+
+```bash
+# Analyze content
+seo-cli content https://example.com/blog-post
+
+# Check specific target keyword placement
+seo-cli content https://example.com/blog-post -t "target keyword"
+
+# Show more keywords
+seo-cli content https://example.com -k 25
+
+# JSON output
+seo-cli content https://example.com -f json
+```
+
+**Metrics returned:**
+- Word count, sentences, paragraphs
+- Flesch Reading Ease score
+- Flesch-Kincaid Grade Level
+- Gunning Fog Index
+- SMOG Index
+- Coleman-Liau Index
+- Automated Readability Index
+- Top keywords with density %
+- Top 2-word and 3-word phrases
+- Heading structure analysis
+- Title/meta description/H1 optimization tips
+
+---
+
+### Robots.txt Analyzer
+
+Parse and analyze robots.txt rules.
+
+```bash
+# Analyze robots.txt
+seo-cli robots https://example.com
+
+# JSON output
+seo-cli robots https://example.com -f json
+```
+
+**Checks performed:**
+- User-agent rules (Allow/Disallow)
+- Crawl-delay directives
+- Sitemap declarations
+- Blocking issues (Googlebot, all bots)
+- CSS/JS/image blocking warnings
+
+---
+
+### Sitemap Validator
+
+Validate XML sitemap structure and URLs.
+
+```bash
+# Validate sitemap
+seo-cli sitemap https://example.com/sitemap.xml
+
+# Auto-detect sitemap.xml
+seo-cli sitemap https://example.com
+
+# Check sample URLs for accessibility
+seo-cli sitemap https://example.com -c
+
+# JSON output
+seo-cli sitemap https://example.com -f json
+```
+
+**Validates:**
+- XML structure (urlset/sitemapindex)
+- URL count (max 50,000)
+- lastmod dates
+- changefreq values
+- priority values (0.0-1.0)
+- URL accessibility (with -c flag)
+
+---
+
+### Security Headers
+
+Check HTTP security and cache headers.
+
+```bash
+# Check headers
+seo-cli headers https://example.com
+
+# Show all headers
+seo-cli headers https://example.com -a
+
+# JSON output
+seo-cli headers https://example.com -f json
+```
+
+**Security headers checked:**
+- Strict-Transport-Security (HSTS)
+- Content-Security-Policy (CSP)
+- X-Content-Type-Options
+- X-Frame-Options
+- X-XSS-Protection
+- Referrer-Policy
+- Permissions-Policy
+
+**Cache headers checked:**
+- Cache-Control
+- ETag
+- Last-Modified
+- Vary
+
+**SEO headers checked:**
+- X-Robots-Tag
+- Link (canonical)
+
+---
+
+### Redirect Checker
+
+Follow and analyze redirect chains.
+
+```bash
+# Follow redirects
+seo-cli redirects http://example.com
+
+# Set max redirects to follow
+seo-cli redirects http://example.com -m 5
+
+# JSON output
+seo-cli redirects http://example.com -f json
+```
+
+**Analysis includes:**
+- Full redirect chain with status codes
+- Response time per hop
+- Protocol changes (HTTP → HTTPS)
+- Redirect type warnings (302 vs 301)
+- Loop detection
+- Total redirect count
+
+---
+
+### Schema Validator
+
+Extract and validate structured data.
+
+```bash
+# Extract structured data
+seo-cli schema https://example.com
+
+# Show raw JSON-LD data
+seo-cli schema https://example.com -r
+
+# JSON output
+seo-cli schema https://example.com -f json
+```
+
+**Extracts and validates:**
+- JSON-LD schemas (Article, Product, Organization, etc.)
+- Microdata
+- OpenGraph tags (og:title, og:description, og:image)
+- Twitter Card tags
+
+**Type-specific validation:**
+- Article: headline, author, datePublished, image
+- Product: name, image, offers
+- Organization: name, address
+- LocalBusiness: name, address, telephone
+- FAQPage: mainEntity
+- BreadcrumbList: itemListElement
+
+---
+
+### SEO Audit
+
+Run a comprehensive SEO audit combining crawl and PageSpeed analysis.
+
+```bash
+# Run audit
+seo-cli audit example.com
+
+# Deeper crawl
+seo-cli audit example.com --depth 5 --limit 200
+
+# JSON output
+seo-cli audit example.com -f json
+```
+
+---
+
+### Competitor Comparison
+
+Compare SEO metrics across multiple sites.
+
+```bash
+# Compare 2-5 sites
+seo-cli compare mysite.com competitor1.com competitor2.com
+
+# JSON output
+seo-cli compare site1.com site2.com -f json
+```
+
+---
 
 ### PageSpeed Insights
 
@@ -251,17 +428,43 @@ seo-cli gsc sitemaps submit https://example.com/sitemap.xml -s https://example.c
 
 ---
 
+### Cache Management
+
+Manage the response cache for API calls.
+
+```bash
+# View cache status
+seo-cli cache status
+
+# Clear all cache
+seo-cli cache clear
+
+# Clear specific namespace
+seo-cli cache clear --namespace moz
+```
+
+---
+
 ## Command Reference
 
 | Command | Description |
 |---------|-------------|
 | `seo-cli auth` | Configure Google service account |
 | `seo-cli status` | Show authentication status |
+| **Site Analysis** | |
+| `seo-cli audit <url>` | Comprehensive SEO audit |
+| `seo-cli compare <urls...>` | Compare multiple sites |
+| `seo-cli content <url>` | Analyze readability & keywords |
+| `seo-cli crawl <url>` | Crawl site for SEO issues |
+| **Technical SEO** | |
+| `seo-cli robots <url>` | Analyze robots.txt |
+| `seo-cli sitemap <url>` | Validate XML sitemap |
+| `seo-cli headers <url>` | Check security headers |
+| `seo-cli redirects <url>` | Follow redirect chains |
+| `seo-cli schema <url>` | Extract structured data |
 | **PageSpeed** | |
 | `seo-cli speed run <url>` | Analyze page performance |
 | `seo-cli speed auth` | Set API key (optional) |
-| **Crawler** | |
-| `seo-cli crawl <url>` | Crawl site for SEO issues |
 | **UptimeRobot** | |
 | `seo-cli uptime auth` | Configure API key |
 | `seo-cli uptime monitors` | List monitors |
@@ -283,6 +486,52 @@ seo-cli gsc sitemaps submit https://example.com/sitemap.xml -s https://example.c
 | `seo-cli gsc query` | Query search analytics |
 | `seo-cli gsc inspect` | Check URL indexing |
 | `seo-cli gsc sitemaps` | Manage sitemaps |
+| **Cache** | |
+| `seo-cli cache status` | View cache statistics |
+| `seo-cli cache clear` | Clear cached responses |
+
+---
+
+## Setup
+
+### Google Service Account (for GA & Search Console)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable **Google Analytics Data API**, **Google Analytics Admin API**, and **Search Console API**
+3. Create a service account and download the JSON key
+4. Add the service account email to:
+   - Google Analytics: Admin > Property Access Management
+   - Search Console: Settings > Users and permissions
+
+```bash
+seo-cli auth --key-file ./service-account.json
+```
+
+### UptimeRobot (Free)
+
+1. Create account at [uptimerobot.com](https://uptimerobot.com)
+2. Get API key from Dashboard > My Settings
+
+```bash
+seo-cli uptime auth --api-key <your-api-key>
+```
+
+### Moz API (Free tier: 10 queries/month)
+
+1. Sign up at [moz.com/products/api](https://moz.com/products/api)
+2. Get Access ID and Secret Key
+
+```bash
+seo-cli moz auth --id <access-id> --secret <secret-key>
+```
+
+### PageSpeed API Key (Optional)
+
+For higher rate limits, add a Google API key:
+
+```bash
+seo-cli speed auth --api-key <google-api-key>
+```
 
 ---
 
