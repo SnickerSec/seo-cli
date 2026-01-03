@@ -17,13 +17,18 @@ import { createMozCommand } from './commands/moz.js';
 import { createCacheCommand } from './commands/cache.js';
 import { createAuditCommand } from './commands/audit.js';
 import { createCompareCommand } from './commands/compare.js';
+import { createRobotsCommand } from './commands/robots.js';
+import { createSitemapCommand } from './commands/sitemap.js';
+import { createHeadersCommand } from './commands/headers.js';
+import { createRedirectsCommand } from './commands/redirects.js';
+import { createSchemaCommand } from './commands/schema.js';
 
 const program = new Command();
 
 program
   .name('seo-cli')
   .description('All-in-one SEO command-line tool')
-  .version('1.1.0')
+  .version('1.2.0')
   .option('-v, --verbose', 'Enable verbose debug output')
   .hook('preAction', (thisCommand) => {
     const opts = thisCommand.opts();
@@ -78,5 +83,10 @@ program.addCommand(createMozCommand());
 program.addCommand(createCacheCommand());
 program.addCommand(createAuditCommand());
 program.addCommand(createCompareCommand());
+program.addCommand(createRobotsCommand());
+program.addCommand(createSitemapCommand());
+program.addCommand(createHeadersCommand());
+program.addCommand(createRedirectsCommand());
+program.addCommand(createSchemaCommand());
 
 program.parse();
