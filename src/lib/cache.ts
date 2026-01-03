@@ -27,7 +27,7 @@ interface CacheEntry<T> {
 
 function ensureCacheDir(): void {
   if (!existsSync(CACHE_DIR)) {
-    mkdirSync(CACHE_DIR, { recursive: true });
+    mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -87,7 +87,7 @@ export function setCache<T>(namespace: string, key: string, data: T, ttl?: numbe
   };
 
   try {
-    writeFileSync(cachePath, JSON.stringify(entry));
+    writeFileSync(cachePath, JSON.stringify(entry), { mode: 0o600 });
     debug(`Cache set: ${namespace}/${key}`);
   } catch (e) {
     debug(`Cache write error: ${e instanceof Error ? e.message : 'Unknown error'}`);

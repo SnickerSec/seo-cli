@@ -1,9 +1,30 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
+import { resolve, normalize } from 'path';
 import { runReport } from './report.js';
 import { formatOutput, error, success, info } from '../lib/formatter.js';
 import { getDefaultProperty } from '../lib/auth.js';
 import type { ExportOptions } from '../types/index.js';
+
+function validateOutputPath(outputPath: string): string {
+  const resolved = resolve(normalize(outputPath));
+  const cwd = process.cwd();
+
+  // Ensure path is within current working directory
+  if (!resolved.startsWith(cwd + '/') && resolved !== cwd) {
+    throw new Error(`Output path must be within the current working directory: ${cwd}`);
+  }
+
+  // Block sensitive file patterns
+  const sensitivePatterns = [/\.env/, /\.ssh/, /\.git\//, /\.seo-cli/];
+  for (const pattern of sensitivePatterns) {
+    if (pattern.test(resolved)) {
+      throw new Error(`Cannot write to sensitive path: ${resolved}`);
+    }
+  }
+
+  return resolved;
+}
 
 export function createExportCommand(): Command {
   const exportCmd = new Command('export')
@@ -30,6 +51,15 @@ export function createExportCommand(): Command {
           process.exit(1);
         }
 
+        // Validate output path for security
+        let validatedOutput: string;
+        try {
+          validatedOutput = validateOutputPath(options.output);
+        } catch (e) {
+          error(e instanceof Error ? e.message : 'Invalid output path');
+          process.exit(1);
+        }
+
         const exportOptions: ExportOptions = {
           property,
           metrics: options.metrics,
@@ -38,7 +68,7 @@ export function createExportCommand(): Command {
           endDate: options.endDate,
           format: options.format,
           limit: parseInt(options.limit, 10),
-          output: options.output,
+          output: validatedOutput,
         };
 
         info(`Exporting data for property ${property}...`);
