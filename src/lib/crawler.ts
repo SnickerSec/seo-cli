@@ -153,7 +153,7 @@ export class SiteCrawler {
     const links: string[] = [];
     $('a[href]').each((_, el) => {
       const href = $(el).attr('href');
-      if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+      if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('data:') && !href.startsWith('vbscript:')) {
         try {
           const absoluteUrl = new URL(href, url).href;
           links.push(absoluteUrl);
