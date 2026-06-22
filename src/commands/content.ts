@@ -5,7 +5,7 @@ import { validateUrl } from '../lib/utils.js';
 import Table from 'cli-table3';
 import chalk from 'chalk';
 
-interface ContentStats {
+export interface ContentStats {
   wordCount: number;
   characterCount: number;
   sentenceCount: number;
@@ -14,7 +14,7 @@ interface ContentStats {
   avgSyllablesPerWord: number;
 }
 
-interface ReadabilityScores {
+export interface ReadabilityScores {
   fleschReadingEase: number;
   fleschKincaidGrade: number;
   gunningFog: number;
@@ -24,13 +24,13 @@ interface ReadabilityScores {
   averageGradeLevel: number;
 }
 
-interface KeywordAnalysis {
+export interface KeywordAnalysis {
   word: string;
   count: number;
   density: number;
 }
 
-interface ContentResult {
+export interface ContentResult {
   url: string;
   title: string | null;
   metaDescription: string | null;
@@ -61,7 +61,7 @@ const STOP_WORDS = new Set([
   'me', 'him', 'them', 'am', 'being', 'because', 'until', 'against', 'even', 'much',
 ]);
 
-function countSyllables(word: string): number {
+export function countSyllables(word: string): number {
   word = word.toLowerCase().replace(/[^a-z]/g, '');
   if (word.length <= 3) return 1;
 
@@ -73,7 +73,7 @@ function countSyllables(word: string): number {
   return syllables ? syllables.length : 1;
 }
 
-function extractText(html: string): { text: string; paragraphs: string[] } {
+export function extractText(html: string): { text: string; paragraphs: string[] } {
   const $ = cheerio.load(html);
 
   // Remove script, style, nav, footer, header, aside elements
@@ -99,7 +99,7 @@ function extractText(html: string): { text: string; paragraphs: string[] } {
   return { text, paragraphs };
 }
 
-function tokenize(text: string): string[] {
+export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s'-]/g, ' ')
@@ -107,14 +107,14 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 1);
 }
 
-function getSentences(text: string): string[] {
+export function getSentences(text: string): string[] {
   return text
     .replace(/([.!?])\s+/g, '$1|')
     .split('|')
     .filter(s => s.trim().length > 0);
 }
 
-function calculateStats(text: string, paragraphs: string[]): ContentStats {
+export function calculateStats(text: string, paragraphs: string[]): ContentStats {
   const words = tokenize(text);
   const sentences = getSentences(text);
 
@@ -130,7 +130,7 @@ function calculateStats(text: string, paragraphs: string[]): ContentStats {
   };
 }
 
-function calculateReadability(stats: ContentStats): ReadabilityScores {
+export function calculateReadability(stats: ContentStats): ReadabilityScores {
   const { wordCount, sentenceCount, avgWordsPerSentence, avgSyllablesPerWord, characterCount } = stats;
 
   if (wordCount === 0 || sentenceCount === 0) {
@@ -191,7 +191,7 @@ function calculateReadability(stats: ContentStats): ReadabilityScores {
   };
 }
 
-function analyzeKeywords(text: string, topN: number = 15): KeywordAnalysis[] {
+export function analyzeKeywords(text: string, topN: number = 15): KeywordAnalysis[] {
   const words = tokenize(text).filter(w => !STOP_WORDS.has(w) && w.length > 2);
   const totalWords = words.length;
 
@@ -210,7 +210,7 @@ function analyzeKeywords(text: string, topN: number = 15): KeywordAnalysis[] {
     .slice(0, topN);
 }
 
-function analyzeNGrams(text: string, n: number, topN: number = 10): KeywordAnalysis[] {
+export function analyzeNGrams(text: string, n: number, topN: number = 10): KeywordAnalysis[] {
   const words = tokenize(text);
   const totalNGrams = words.length - n + 1;
 
@@ -238,7 +238,7 @@ function analyzeNGrams(text: string, n: number, topN: number = 10): KeywordAnaly
     .slice(0, topN);
 }
 
-function analyzeContent(result: ContentResult): void {
+export function analyzeContent(result: ContentResult): void {
   const { stats, readability } = result;
 
   // Word count issues
