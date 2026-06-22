@@ -3,20 +3,21 @@ import { error, success, info, warn } from '../lib/formatter.js';
 import { validateUrl } from '../lib/utils.js';
 import Table from 'cli-table3';
 import chalk from 'chalk';
+import * as cheerio from 'cheerio';
 
-interface SitemapUrl {
+export interface SitemapUrl {
   loc: string;
   lastmod?: string;
   changefreq?: string;
   priority?: string;
 }
 
-interface SitemapIndex {
+export interface SitemapIndex {
   loc: string;
   lastmod?: string;
 }
 
-interface SitemapResult {
+export interface SitemapResult {
   url: string;
   type: 'sitemap' | 'sitemapindex' | 'unknown';
   exists: boolean;
@@ -28,38 +29,60 @@ interface SitemapResult {
   invalidUrls: string[];
 }
 
-function parseXml(content: string): { urls: SitemapUrl[]; sitemaps: SitemapIndex[]; type: 'sitemap' | 'sitemapindex' | 'unknown' } {
+export function parseXml(content: string): { urls: SitemapUrl[]; sitemaps: SitemapIndex[]; type: 'sitemap' | 'sitemapindex' | 'unknown' } {
   const urls: SitemapUrl[] = [];
   const sitemaps: SitemapIndex[] = [];
   let type: 'sitemap' | 'sitemapindex' | 'unknown' = 'unknown';
 
-  // Check if it's a sitemap index
-  if (content.includes('<sitemapindex')) {
-    type = 'sitemapindex';
-    // Extract sitemap entries
-    const sitemapMatches = content.matchAll(/<sitemap>([\s\S]*?)<\/sitemap>/gi);
-    for (const match of sitemapMatches) {
-      const sitemapContent = match[1];
-      const loc = sitemapContent.match(/<loc>([\s\S]*?)<\/loc>/i)?.[1]?.trim();
-      const lastmod = sitemapContent.match(/<lastmod>([\s\S]*?)<\/lastmod>/i)?.[1]?.trim();
-      if (loc) {
-        sitemaps.push({ loc, lastmod });
-      }
+  try {
+    const $ = cheerio.load(content, { xmlMode: true });
+
+    const getLocalName = (el: any): string => {
+      const name = el.name || '';
+      const colonIndex = name.indexOf(':');
+      return colonIndex !== -1 ? name.substring(colonIndex + 1) : name;
+    };
+
+    const findChildren = (parent: cheerio.Cheerio<any>, localName: string): cheerio.Cheerio<any> => {
+      return parent.children().filter((_: number, el: any) => getLocalName(el) === localName);
+    };
+
+    const hasSitemapIndex = $('*').filter((_, el) => getLocalName(el) === 'sitemapindex').length > 0;
+    const hasUrlset = $('*').filter((_, el) => getLocalName(el) === 'urlset').length > 0;
+
+    if (hasSitemapIndex) {
+      type = 'sitemapindex';
+      $('*').filter((_, el) => getLocalName(el) === 'sitemap').each((_, elem) => {
+        const sitemapEl = $(elem);
+        const loc = findChildren(sitemapEl, 'loc').text().trim();
+        const lastmod = findChildren(sitemapEl, 'lastmod').text().trim();
+        if (loc) {
+          sitemaps.push({
+            loc,
+            lastmod: lastmod || undefined,
+          });
+        }
+      });
+    } else if (hasUrlset) {
+      type = 'sitemap';
+      $('*').filter((_, el) => getLocalName(el) === 'url').each((_, elem) => {
+        const urlEl = $(elem);
+        const loc = findChildren(urlEl, 'loc').text().trim();
+        const lastmod = findChildren(urlEl, 'lastmod').text().trim();
+        const changefreq = findChildren(urlEl, 'changefreq').text().trim();
+        const priority = findChildren(urlEl, 'priority').text().trim();
+        if (loc) {
+          urls.push({
+            loc,
+            lastmod: lastmod || undefined,
+            changefreq: changefreq || undefined,
+            priority: priority || undefined,
+          });
+        }
+      });
     }
-  } else if (content.includes('<urlset')) {
-    type = 'sitemap';
-    // Extract URL entries
-    const urlMatches = content.matchAll(/<url>([\s\S]*?)<\/url>/gi);
-    for (const match of urlMatches) {
-      const urlContent = match[1];
-      const loc = urlContent.match(/<loc>([\s\S]*?)<\/loc>/i)?.[1]?.trim();
-      const lastmod = urlContent.match(/<lastmod>([\s\S]*?)<\/lastmod>/i)?.[1]?.trim();
-      const changefreq = urlContent.match(/<changefreq>([\s\S]*?)<\/changefreq>/i)?.[1]?.trim();
-      const priority = urlContent.match(/<priority>([\s\S]*?)<\/priority>/i)?.[1]?.trim();
-      if (loc) {
-        urls.push({ loc, lastmod, changefreq, priority });
-      }
-    }
+  } catch (e) {
+    // If parsing fails, fall back to empty sitemaps/urls
   }
 
   return { urls, sitemaps, type };
@@ -74,7 +97,7 @@ function validateSitemapUrl(url: string): boolean {
   }
 }
 
-function analyzeSitemap(result: SitemapResult): string[] {
+export function analyzeSitemap(result: SitemapResult): string[] {
   const issues: string[] = [];
 
   if (!result.exists) {
