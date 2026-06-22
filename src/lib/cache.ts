@@ -8,7 +8,9 @@ import { join } from 'path';
 import { createHash } from 'crypto';
 import { debug } from './utils.js';
 
-const CACHE_DIR = join(homedir(), '.seo-cli', 'cache');
+function getCacheDir(): string {
+  return process.env.SEO_CLI_CACHE_DIR || join(homedir(), '.seo-cli', 'cache');
+}
 
 // Default TTLs in milliseconds
 const DEFAULT_TTL = 60 * 60 * 1000; // 1 hour
@@ -26,8 +28,9 @@ interface CacheEntry<T> {
 }
 
 function ensureCacheDir(): void {
-  if (!existsSync(CACHE_DIR)) {
-    mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
+  const cacheDir = getCacheDir();
+  if (!existsSync(cacheDir)) {
+    mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -37,7 +40,7 @@ function getCacheKey(namespace: string, key: string): string {
 }
 
 function getCachePath(cacheKey: string): string {
-  return join(CACHE_DIR, `${cacheKey}.json`);
+  return join(getCacheDir(), `${cacheKey}.json`);
 }
 
 /**
@@ -102,12 +105,13 @@ export function clearCache(namespace?: string): number {
   let cleared = 0;
 
   try {
-    const files = readdirSync(CACHE_DIR);
+    const cacheDir = getCacheDir();
+    const files = readdirSync(cacheDir);
     for (const file of files) {
       if (!file.endsWith('.json')) continue;
 
       if (!namespace || file.startsWith(`${namespace}_`)) {
-        unlinkSync(join(CACHE_DIR, file));
+        unlinkSync(join(cacheDir, file));
         cleared++;
       }
     }
@@ -131,11 +135,12 @@ export function getCacheStats(): { entries: number; size: number; namespaces: Re
   };
 
   try {
-    const files = readdirSync(CACHE_DIR);
+    const cacheDir = getCacheDir();
+    const files = readdirSync(cacheDir);
     for (const file of files) {
       if (!file.endsWith('.json')) continue;
 
-      const filePath = join(CACHE_DIR, file);
+      const filePath = join(cacheDir, file);
       const fileStat = statSync(filePath);
       stats.entries++;
       stats.size += fileStat.size;
