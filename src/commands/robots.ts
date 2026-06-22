@@ -4,13 +4,13 @@ import { validateUrl } from '../lib/utils.js';
 import Table from 'cli-table3';
 import chalk from 'chalk';
 
-interface RobotsRule {
+export interface RobotsRule {
   userAgent: string;
   rules: { type: 'allow' | 'disallow'; path: string }[];
   crawlDelay?: number;
 }
 
-interface RobotsResult {
+export interface RobotsResult {
   url: string;
   exists: boolean;
   sitemaps: string[];
@@ -18,15 +18,19 @@ interface RobotsResult {
   issues: string[];
 }
 
-function parseRobotsTxt(content: string): { rules: RobotsRule[]; sitemaps: string[] } {
-  const lines = content.split('\n').map(line => line.trim());
+export function parseRobotsTxt(content: string): { rules: RobotsRule[]; sitemaps: string[] } {
+  const lines = content.split('\n');
   const rules: RobotsRule[] = [];
   const sitemaps: string[] = [];
   let currentRule: RobotsRule | null = null;
 
-  for (const line of lines) {
-    // Skip comments and empty lines
-    if (line.startsWith('#') || line === '') continue;
+  for (const rawLine of lines) {
+    // Strip comments
+    const commentIndex = rawLine.indexOf('#');
+    const line = commentIndex !== -1 ? rawLine.substring(0, commentIndex).trim() : rawLine.trim();
+
+    // Skip empty lines
+    if (line === '') continue;
 
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
@@ -72,7 +76,7 @@ function parseRobotsTxt(content: string): { rules: RobotsRule[]; sitemaps: strin
   return { rules, sitemaps };
 }
 
-function analyzeRobots(result: RobotsResult): string[] {
+export function analyzeRobots(result: RobotsResult): string[] {
   const issues: string[] = [];
 
   if (!result.exists) {
