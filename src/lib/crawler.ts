@@ -152,6 +152,10 @@ export class SiteCrawler {
     // Extract links
     const links: string[] = [];
     $('a[href]').each((_, el) => {
+      const rel = $(el).attr('rel') || '';
+      if (rel.split(/\s+/).includes('nofollow')) {
+        return; // Skip nofollow links
+      }
       const href = $(el).attr('href');
       if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:') && !href.startsWith('data:') && !href.startsWith('vbscript:')) {
         try {
@@ -244,7 +248,7 @@ export class SiteCrawler {
   }
 
   async crawl(): Promise<CrawlResult[]> {
-    while (this.queue.length > 0 || this.activeRequests > 0) {
+    while ((this.queue.length > 0 && this.results.size < this.options.maxPages) || this.activeRequests > 0) {
       // Process items up to concurrency limit
       while (this.queue.length > 0 && this.activeRequests < this.options.concurrency && this.results.size < this.options.maxPages) {
         const item = this.queue.shift();

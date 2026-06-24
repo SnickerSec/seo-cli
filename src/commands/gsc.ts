@@ -1,7 +1,15 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { getSearchConsoleClient } from '../lib/client.js';
-import { formatOutput, error, info, success } from '../lib/formatter.js';
+import { formatOutput, formatTable, error, info, success } from '../lib/formatter.js';
 import { getDefaultSite, setDefaultSite } from '../lib/auth.js';
+import {
+  saveSnapshot,
+  listSnapshots,
+  loadSnapshot,
+  diffSnapshots,
+  type Snapshot,
+} from '../lib/rankTracker.js';
 import type { SearchConsoleQueryOptions } from '../types/index.js';
 
 function formatDate(dateStr: string): string {
@@ -327,6 +335,173 @@ export function createGscCommand(): Command {
     });
 
   gsc.addCommand(sitemaps);
+
+  // Rank tracking subcommand group
+  const track = new Command('track')
+    .description('Track query rankings over time (local snapshots)');
+
+  track
+    .command('snapshot')
+    .description('Save a snapshot of current query rankings from GSC')
+    .option('-s, --site <url>', 'Site URL (uses default if set)')
+    .option('--start-date <date>', 'Start date', '7daysAgo')
+    .option('--end-date <date>', 'End date (becomes the snapshot date)', 'today')
+    .option('-l, --limit <number>', 'Max queries to track', '500')
+    .action(async (options) => {
+      try {
+        const site = options.site || getDefaultSite();
+        if (!site) {
+          error('Site URL is required. Use --site or set a default with: seo-cli gsc set-default <url>');
+          process.exit(1);
+        }
+        const endDate = formatDate(options.endDate);
+        info(`Snapshotting ${site} for ${formatDate(options.startDate)} → ${endDate}...`);
+
+        const client = getSearchConsoleClient();
+        const response = await client.searchanalytics.query({
+          siteUrl: site,
+          requestBody: {
+            startDate: formatDate(options.startDate),
+            endDate,
+            dimensions: ['query'],
+            rowLimit: parseInt(options.limit, 10),
+            type: 'web',
+          },
+        });
+
+        const rows = (response.data.rows || []).map((r) => ({
+          query: (r.keys && r.keys[0]) || '',
+          clicks: r.clicks || 0,
+          impressions: r.impressions || 0,
+          ctr: r.ctr || 0,
+          position: r.position || 0,
+        }));
+
+        const snapshot: Snapshot = {
+          site,
+          date: endDate,
+          takenAt: new Date().toISOString(),
+          rows,
+        };
+        const path = saveSnapshot(snapshot);
+        success(`Saved ${rows.length} queries → ${path}`);
+      } catch (e) {
+        error(e instanceof Error ? e.message : 'Failed to take snapshot');
+        process.exit(1);
+      }
+    });
+
+  track
+    .command('list')
+    .description('List saved snapshots for a site')
+    .option('-s, --site <url>', 'Site URL (uses default if set)')
+    .action((options) => {
+      const site = options.site || getDefaultSite();
+      if (!site) {
+        error('Site URL is required.');
+        process.exit(1);
+      }
+      const dates = listSnapshots(site);
+      if (dates.length === 0) {
+        info('No snapshots found. Run: seo-cli gsc track snapshot');
+        return;
+      }
+      console.log(formatTable(['Date', 'Queries'], dates.map((d) => {
+        const snap = loadSnapshot(site, d);
+        return [d, snap?.rows.length ?? 0];
+      })));
+    });
+
+  track
+    .command('diff')
+    .description('Compare the two most recent snapshots (or specify dates)')
+    .option('-s, --site <url>', 'Site URL (uses default if set)')
+    .option('--from <date>', 'Baseline snapshot date (YYYY-MM-DD)')
+    .option('--to <date>', 'Comparison snapshot date (YYYY-MM-DD, default: latest)')
+    .option('-l, --limit <number>', 'Max rows to show per section', '20')
+    .option('-f, --format <format>', 'Output format (table, json, csv)', 'table')
+    .action((options) => {
+      try {
+        const site = options.site || getDefaultSite();
+        if (!site) {
+          error('Site URL is required.');
+          process.exit(1);
+        }
+        const dates = listSnapshots(site);
+        if (dates.length < 2 && !(options.from && options.to)) {
+          error(`Need at least 2 snapshots to diff. Found: ${dates.length}`);
+          process.exit(1);
+        }
+        const toDate = options.to || dates[dates.length - 1];
+        const fromDate = options.from || dates[dates.length - 2];
+        const before = loadSnapshot(site, fromDate);
+        const after = loadSnapshot(site, toDate);
+        if (!before || !after) {
+          error(`Snapshot not found: ${!before ? fromDate : toDate}`);
+          process.exit(1);
+        }
+        info(`Comparing ${fromDate} → ${toDate}`);
+
+        const diffs = diffSnapshots(before, after);
+        const limit = parseInt(options.limit, 10);
+
+        if (options.format === 'json') {
+          console.log(JSON.stringify({ site, from: fromDate, to: toDate, diffs }, null, 2));
+          return;
+        }
+
+        // Winners (position improved — delta negative), losers (delta positive)
+        const changed = diffs.filter((d) => d.status === 'changed' && d.positionDelta !== null);
+        const winners = [...changed].sort((a, b) => (a.positionDelta! - b.positionDelta!)).slice(0, limit);
+        const losers = [...changed].sort((a, b) => (b.positionDelta! - a.positionDelta!)).slice(0, limit);
+        const newQueries = diffs.filter((d) => d.status === 'new').sort((a, b) => b.clicksAfter - a.clicksAfter).slice(0, limit);
+        const dropped = diffs.filter((d) => d.status === 'dropped').sort((a, b) => b.clicksBefore - a.clicksBefore).slice(0, limit);
+
+        const posCell = (d: number | null) => {
+          if (d === null) return '-';
+          if (d < 0) return chalk.green(`▲ ${Math.abs(d).toFixed(1)}`);
+          if (d > 0) return chalk.red(`▼ ${d.toFixed(1)}`);
+          return '—';
+        };
+
+        if (winners.length) {
+          console.log(chalk.bold.cyan('\n🔼 Top Position Improvements\n'));
+          console.log(formatTable(
+            ['Query', 'Before', 'After', 'Δ Position', 'Δ Clicks'],
+            winners.map((d) => [d.query, d.positionBefore!.toFixed(1), d.positionAfter!.toFixed(1), posCell(d.positionDelta), d.clicksDelta > 0 ? chalk.green(`+${d.clicksDelta}`) : d.clicksDelta < 0 ? chalk.red(d.clicksDelta) : '0'])
+          ));
+        }
+        if (losers.length) {
+          console.log(chalk.bold.cyan('\n🔽 Top Position Drops\n'));
+          console.log(formatTable(
+            ['Query', 'Before', 'After', 'Δ Position', 'Δ Clicks'],
+            losers.map((d) => [d.query, d.positionBefore!.toFixed(1), d.positionAfter!.toFixed(1), posCell(d.positionDelta), d.clicksDelta > 0 ? chalk.green(`+${d.clicksDelta}`) : d.clicksDelta < 0 ? chalk.red(d.clicksDelta) : '0'])
+          ));
+        }
+        if (newQueries.length) {
+          console.log(chalk.bold.cyan('\n✨ New Queries\n'));
+          console.log(formatTable(
+            ['Query', 'Clicks', 'Impressions', 'Position'],
+            newQueries.map((d) => [d.query, d.clicksAfter, d.impressionsAfter, d.positionAfter!.toFixed(1)])
+          ));
+        }
+        if (dropped.length) {
+          console.log(chalk.bold.cyan('\n💤 Dropped Queries\n'));
+          console.log(formatTable(
+            ['Query', 'Prev Clicks', 'Prev Impressions', 'Prev Position'],
+            dropped.map((d) => [d.query, d.clicksBefore, d.impressionsBefore, d.positionBefore!.toFixed(1)])
+          ));
+        }
+        if (!winners.length && !losers.length && !newQueries.length && !dropped.length) {
+          info('No differences found between snapshots.');
+        }
+      } catch (e) {
+        error(e instanceof Error ? e.message : 'Failed to diff snapshots');
+        process.exit(1);
+      }
+    });
+
+  gsc.addCommand(track);
 
   return gsc;
 }

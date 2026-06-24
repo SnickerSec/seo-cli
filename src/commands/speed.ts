@@ -6,6 +6,76 @@ import { withCache } from '../lib/cache.js';
 import type { CoreWebVitals } from '../types/index.js';
 
 const PAGESPEED_API = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
+const CRUX_API = 'https://chromeuxreport.googleapis.com/v1/records:queryRecord';
+
+interface CruxMetricBucket {
+  start: number | string;
+  end?: number | string;
+  density: number;
+}
+interface CruxMetric {
+  histogram?: CruxMetricBucket[];
+  percentiles?: { p75?: number };
+}
+interface CruxResponse {
+  record?: {
+    key: { url?: string; origin?: string; formFactor?: string };
+    metrics: Record<string, CruxMetric>;
+    collectionPeriod?: {
+      firstDate: { year: number; month: number; day: number };
+      lastDate: { year: number; month: number; day: number };
+    };
+  };
+}
+
+async function runCrux(params: { url?: string; origin?: string; formFactor?: 'PHONE' | 'DESKTOP' | 'TABLET' }): Promise<CruxResponse> {
+  const apiKey = getPageSpeedApiKey();
+  if (!apiKey) {
+    throw new Error('CrUX requires an API key. Configure with: seo-cli speed auth --api-key <google-api-key>');
+  }
+  const body: Record<string, unknown> = {};
+  if (params.url) body.url = params.url;
+  if (params.origin) body.origin = params.origin;
+  if (params.formFactor) body.formFactor = params.formFactor;
+
+  const response = await fetch(`${CRUX_API}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const msg = (errorData as { error?: { message?: string } }).error?.message || `CrUX API error: ${response.status}`;
+    if (response.status === 404) {
+      throw new Error(`${msg}\nHint: this URL/origin may not have enough real-user data in the CrUX dataset.`);
+    }
+    throw new Error(msg);
+  }
+  return response.json() as Promise<CruxResponse>;
+}
+
+function formatCruxDate(d?: { year: number; month: number; day: number }): string {
+  if (!d) return 'unknown';
+  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+}
+
+function rateCrux(metric: string, p75: number | undefined): string {
+  if (p75 === undefined) return 'N/A';
+  const thresholds: Record<string, [number, number]> = {
+    largest_contentful_paint: [2500, 4000],
+    first_contentful_paint: [1800, 3000],
+    cumulative_layout_shift: [0.1, 0.25],
+    interaction_to_next_paint: [200, 500],
+    experimental_time_to_first_byte: [800, 1800],
+    first_input_delay: [100, 300],
+  };
+  const t = thresholds[metric];
+  if (!t) return '-';
+  if (p75 <= t[0]) return chalk.green('Good');
+  if (p75 <= t[1]) return chalk.yellow('Needs Improvement');
+  return chalk.red('Poor');
+}
 
 interface LighthouseAudit {
   score: number | null;
@@ -188,6 +258,68 @@ export function createSpeedCommand(): Command {
 
       } catch (e) {
         error(e instanceof Error ? e.message : 'Failed to run PageSpeed analysis');
+        process.exit(1);
+      }
+    });
+
+  speed
+    .command('crux <urlOrOrigin>')
+    .description('Fetch real-user CrUX field data (Chrome UX Report)')
+    .option('--origin', 'Query origin-level data instead of URL-level')
+    .option('--form-factor <factor>', 'PHONE, DESKTOP, or TABLET (default: all)')
+    .option('-f, --format <format>', 'Output format: table or json', 'table')
+    .action(async (target, options) => {
+      try {
+        if (!target.startsWith('http://') && !target.startsWith('https://')) {
+          target = 'https://' + target;
+        }
+        const params: Parameters<typeof runCrux>[0] = {};
+        if (options.origin) {
+          const u = new URL(target);
+          params.origin = `${u.protocol}//${u.host}`;
+        } else {
+          params.url = target;
+        }
+        if (options.formFactor) {
+          const ff = options.formFactor.toUpperCase();
+          if (!['PHONE', 'DESKTOP', 'TABLET'].includes(ff)) {
+            error('--form-factor must be PHONE, DESKTOP, or TABLET');
+            process.exit(1);
+          }
+          params.formFactor = ff as 'PHONE' | 'DESKTOP' | 'TABLET';
+        }
+
+        info(`Querying CrUX for ${params.origin || params.url}${params.formFactor ? ` (${params.formFactor})` : ''}...`);
+        const data = await runCrux(params);
+        const record = data.record;
+        if (!record) {
+          info('No CrUX data available for this target.');
+          return;
+        }
+
+        if (options.format === 'json') {
+          console.log(JSON.stringify(data, null, 2));
+          return;
+        }
+
+        const period = record.collectionPeriod;
+        console.log(chalk.bold.cyan('\n📈 CrUX Field Data (real-user p75)\n'));
+        console.log(chalk.dim(`Period: ${formatCruxDate(period?.firstDate)} → ${formatCruxDate(period?.lastDate)}`));
+        console.log(chalk.dim(`Key: ${JSON.stringify(record.key)}\n`));
+
+        const rows: (string | number)[][] = [];
+        for (const [metric, value] of Object.entries(record.metrics)) {
+          const p75 = value.percentiles?.p75;
+          let display = 'N/A';
+          if (p75 !== undefined) {
+            display = metric === 'cumulative_layout_shift' ? Number(p75).toFixed(3) : formatMs(Number(p75));
+          }
+          rows.push([metric, display, rateCrux(metric, p75 !== undefined ? Number(p75) : undefined)]);
+        }
+        console.log(formatTable(['Metric', 'p75', 'Rating'], rows));
+        console.log();
+      } catch (e) {
+        error(e instanceof Error ? e.message : 'Failed to query CrUX');
         process.exit(1);
       }
     });

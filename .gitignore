@@ -4,4 +4,6 @@ dist/
 *.log
 .env
 .env.*
+*-key.json
+service-account*.json
 coverage/

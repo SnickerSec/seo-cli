@@ -73,6 +73,37 @@ export function countSyllables(word: string): number {
   return syllables ? syllables.length : 1;
 }
 
+function getElementText(node: any, $: cheerio.CheerioAPI): string {
+  if (!node) return '';
+  if (node.type === 'text') {
+    return node.data || '';
+  }
+  
+  if (node.type === 'tag') {
+    let result = '';
+    const childNodes = node.childNodes;
+    if (childNodes) {
+      for (const child of childNodes) {
+        result += getElementText(child, $);
+      }
+    }
+    
+    const tagName = node.tagName.toLowerCase();
+    const spacedTags = new Set([
+      'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th', 'tr', 
+      'table', 'section', 'article', 'aside', 'header', 'footer', 'br',
+      'a', 'span', 'strong', 'em', 'b', 'i', 'u', 'img', 'button'
+    ]);
+    if (spacedTags.has(tagName)) {
+      return ' ' + result.trim() + ' ';
+    }
+    
+    return result;
+  }
+  
+  return '';
+}
+
 export function extractText(html: string): { text: string; paragraphs: string[] } {
   const $ = cheerio.load(html);
 
@@ -91,8 +122,8 @@ export function extractText(html: string): { text: string; paragraphs: string[] 
     }
   });
 
-  // Get all text content
-  const text = $content.text()
+  // Get all text content with proper tag-boundary spacing
+  const text = ($content.length > 0 ? getElementText($content[0], $) : '')
     .replace(/\s+/g, ' ')
     .trim();
 

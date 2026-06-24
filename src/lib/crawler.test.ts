@@ -313,4 +313,23 @@ describe('SiteCrawler', () => {
       expect(crawler).toBeDefined();
     });
   });
+
+  describe('nofollow links', () => {
+    it('should ignore links with rel="nofollow"', () => {
+      const crawler = new SiteCrawler('https://example.com');
+      const html = `
+        <html>
+          <body>
+            <a href="https://example.com/follow-me">Follow</a>
+            <a href="https://example.com/no-follow" rel="nofollow">No Follow</a>
+            <a href="https://example.com/no-follow-sponsored" rel="sponsored nofollow noopener">No Follow Sponsored</a>
+          </body>
+        </html>
+      `;
+      const result = (crawler as any).parsePage('https://example.com', html, 200);
+      expect(result.links).toContain('https://example.com/follow-me');
+      expect(result.links).not.toContain('https://example.com/no-follow');
+      expect(result.links).not.toContain('https://example.com/no-follow-sponsored');
+    });
+  });
 });

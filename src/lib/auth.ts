@@ -1,7 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, chmodSync } from 'fs';
+import { homedir, platform } from 'os';
 import { join } from 'path';
 import type { Config } from '../types/index.js';
+
+const IS_WINDOWS = platform() === 'win32';
 
 const CONFIG_DIR = join(homedir(), '.seo-cli');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -49,9 +51,35 @@ export function setKeyFile(keyFilePath: string): void {
     throw e;
   }
 
+  // Tighten permissions to 0600 (owner read/write only) on POSIX platforms.
+  if (!IS_WINDOWS) {
+    try {
+      chmodSync(keyFilePath, 0o600);
+    } catch {
+      // Non-fatal — surface via checkKeyFilePermissions at runtime.
+    }
+  }
+
   const config = loadConfig();
   config.keyFilePath = keyFilePath;
   saveConfig(config);
+}
+
+/**
+ * Returns a warning string if the key file is world/group readable, else null.
+ * Always returns null on Windows (POSIX mode bits don't apply).
+ */
+export function checkKeyFilePermissions(keyFilePath: string): string | null {
+  if (IS_WINDOWS) return null;
+  try {
+    const mode = statSync(keyFilePath).mode & 0o777;
+    if (mode & 0o077) {
+      return `Key file permissions are ${mode.toString(8).padStart(3, '0')} (group/world accessible). Run: chmod 600 ${keyFilePath}`;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 export function getKeyFilePath(): string | undefined {
